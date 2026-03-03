@@ -46,3 +46,66 @@
 
 ;; Protocol counter
 (define-data-var protocol-counter uint u0)
+
+;; ============================================
+;; DATA MAPS
+;; ============================================
+
+;; User registration and aggregate data
+(define-map users
+  principal
+  {
+    registered-at: uint,
+    total-positions: uint,
+    total-value: uint,
+    last-updated: uint
+  }
+)
+
+;; Individual positions for each user
+(define-map positions
+  { user: principal, position-id: uint }
+  {
+    protocol-id: uint,
+    position-type: uint,
+    amount: uint,
+    entry-value: uint,
+    entry-block: uint,
+    last-updated: uint,
+    is-active: bool
+  }
+)
+
+;; User position counter
+(define-map user-position-counter
+  principal
+  uint
+)
+
+;; Registered DeFi protocols
+(define-map protocols
+  uint
+  {
+    name: (string-ascii 64),
+    contract-address: principal,
+    is-active: bool,
+    total-tracked: uint,
+    registered-at: uint
+  }
+)
+
+;; Protocol name to ID mapping
+(define-map protocol-name-to-id
+  (string-ascii 64)
+  uint
+)
+
+;; Historical snapshots for users (for yield calculation)
+(define-map portfolio-snapshots
+  { user: principal, stacks-block-height: uint }
+  {
+    total-value: uint,
+    position-count: uint,
+    timestamp: uint
+  }
+)
