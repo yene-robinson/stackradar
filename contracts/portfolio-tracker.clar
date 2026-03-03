@@ -109,3 +109,103 @@
     timestamp: uint
   }
 )
+
+;; ============================================
+;; AUTHORIZATION HELPERS
+;; ============================================
+
+(define-private (is-contract-owner)
+  (is-eq tx-sender CONTRACT-OWNER)
+)
+
+;; ============================================
+;; PUBLIC FUNCTIONS - User Management
+;; ============================================
+
+;; Register a new user
+(define-public (register-user)
+  (let
+    (
+      (existing-user (map-get? users tx-sender))
+    )
+    (asserts! (is-none existing-user) ERR-ALREADY-REGISTERED)
+    (map-set users tx-sender
+      {
+        registered-at: stacks-block-height,
+        total-positions: u0,
+        total-value: u0,
+        last-updated: stacks-block-height
+      }
+    )
+    (map-set user-position-counter tx-sender u0)
+    (var-set total-users (+ (var-get total-users) u1))
+    (ok true)
+  )
+)
+
+;; ============================================
+;; PUBLIC FUNCTIONS - Position Management
+;; ============================================
+
+;; Add a new position
+(define-public (add-position 
+    (protocol-id uint)
+    (position-type uint)
+    (amount uint)
+    (entry-value uint)
+  )
+  (let
+    (
+      (user-data (unwrap! (map-get? users tx-sender) ERR-NOT-AUTHORIZED))
+      (protocol (unwrap! (map-get? protocols protocol-id) ERR-PROTOCOL-NOT-REGISTERED))
+      (current-position-count (default-to u0 (map-get? user-position-counter tx-sender)))
+      (new-position-id (+ current-position-count u1))
+      (new-total-value (+ (get total-value user-data) entry-value))
+    )
+    ;; Validate inputs
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
+    (asserts! (get is-active protocol) ERR-INVALID-PROTOCOL)
+    (asserts! (or (is-eq position-type POSITION-TYPE-HOLD)
+                  (is-eq position-type POSITION-TYPE-STAKED)
+                  (is-eq position-type POSITION-TYPE-LENDING)
+                  (is-eq position-type POSITION-TYPE-LP)) ERR-INVALID-AMOUNT)
+    
+    ;; Create position
+    (map-set positions
+      { user: tx-sender, position-id: new-position-id }
+      {
+        protocol-id: protocol-id,
+        position-type: position-type,
+        amount: amount,
+        entry-value: entry-value,
+        entry-block: stacks-block-height,
+        last-updated: stacks-block-height,
+        is-active: true
+      }
+    )
+    
+    ;; Update user data
+    (map-set users tx-sender
+      (merge user-data {
+        total-positions: new-position-id,
+        total-value: new-total-value,
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update position counter
+    (map-set user-position-counter tx-sender new-position-id)
+    
+    ;; Update global tracked value
+    (var-set total-tracked-value (+ (var-get total-tracked-value) entry-value))
+    
+    ;; Update protocol total
+    (map-set protocols protocol-id
+      (merge protocol {
+        total-tracked: (+ (get total-tracked protocol) entry-value)
+      })
+    )
+    
+    (ok new-position-id)
+  )
+)
