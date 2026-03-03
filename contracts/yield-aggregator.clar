@@ -116,3 +116,76 @@
     unique-users: uint
   }
 )
+
+;; ============================================
+;; AUTHORIZATION HELPERS
+;; ============================================
+
+(define-private (is-contract-owner)
+  (is-eq tx-sender CONTRACT-OWNER)
+)
+
+(define-private (is-oracle)
+  (is-eq tx-sender (var-get rate-oracle))
+)
+
+(define-private (is-authorized-updater)
+  (or (is-contract-owner) (is-oracle))
+)
+
+;; ============================================
+;; PUBLIC FUNCTIONS - Source Management
+;; ============================================
+
+;; Register a new yield source
+(define-public (register-yield-source
+    (name (string-ascii 64))
+    (source-type uint)
+    (contract-address principal)
+    (initial-apy uint)
+    (min-deposit uint)
+  )
+  (let
+    (
+      (new-id (+ (var-get total-sources) u1))
+      (existing (map-get? source-name-to-id name))
+      (current-block stacks-block-height)
+    )
+    (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+    (asserts! (is-none existing) ERR-ALREADY-EXISTS)
+    (asserts! (<= initial-apy u10000000) ERR-INVALID-RATE) ;; Max 1000% APY
+    (asserts! (or (is-eq source-type SOURCE-TYPE-STAKING)
+                  (is-eq source-type SOURCE-TYPE-LENDING)
+                  (is-eq source-type SOURCE-TYPE-LP)
+                  (is-eq source-type SOURCE-TYPE-VAULT)) ERR-INVALID-RATE)
+    
+    (map-set yield-sources new-id
+      {
+        name: name,
+        source-type: source-type,
+        contract-address: contract-address,
+        current-apy: initial-apy,
+        min-deposit: min-deposit,
+        tvl: u0,
+        is-active: true,
+        last-updated: current-block,
+        created-at: current-block
+      }
+    )
+    
+    (map-set source-name-to-id name new-id)
+    
+    ;; Record initial APY in history
+    (map-set apy-history
+      { source-id: new-id, snapshot-block: current-block }
+      {
+        apy: initial-apy,
+        tvl: u0,
+        timestamp: current-block
+      }
+    )
+    
+    (var-set total-sources new-id)
+    (ok new-id)
+  )
+)
