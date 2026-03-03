@@ -329,3 +329,71 @@
     (ok true)
   )
 )
+
+;; Record yield claim (when user claims from actual protocol)
+(define-public (record-yield-claim
+    (source-id uint)
+    (claimed-amount uint)
+  )
+  (let
+    (
+      (tracking (unwrap! (map-get? user-yield-tracking { user: tx-sender, source-id: source-id }) ERR-USER-NOT-FOUND))
+      (user-totals (unwrap! (map-get? user-total-yield tx-sender) ERR-USER-NOT-FOUND))
+    )
+    ;; Update tracking
+    (map-set user-yield-tracking
+      { user: tx-sender, source-id: source-id }
+      (merge tracking {
+        accumulated-yield: u0,
+        last-claim-block: stacks-block-height
+      })
+    )
+    
+    ;; Update user totals
+    (map-set user-total-yield tx-sender
+      (merge user-totals {
+        total-earned: (+ (get total-earned user-totals) claimed-amount),
+        total-claimed: (+ (get total-claimed user-totals) claimed-amount),
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update global yield distributed
+    (var-set total-yield-distributed (+ (var-get total-yield-distributed) claimed-amount))
+    
+    (ok true)
+  )
+)
+
+;; Stop tracking a source
+(define-public (stop-tracking (source-id uint))
+  (let
+    (
+      (tracking (unwrap! (map-get? user-yield-tracking { user: tx-sender, source-id: source-id }) ERR-USER-NOT-FOUND))
+      (user-totals (unwrap! (map-get? user-total-yield tx-sender) ERR-USER-NOT-FOUND))
+    )
+    ;; Remove tracking (set to zero)
+    (map-set user-yield-tracking
+      { user: tx-sender, source-id: source-id }
+      {
+        principal-amount: u0,
+        accumulated-yield: u0,
+        last-claim-block: stacks-block-height,
+        entry-block: u0,
+        entry-apy: u0
+      }
+    )
+    
+    ;; Update user source count
+    (map-set user-total-yield tx-sender
+      (merge user-totals {
+        sources-count: (if (> (get sources-count user-totals) u0)
+                           (- (get sources-count user-totals) u1)
+                           u0),
+        last-updated: stacks-block-height
+      })
+    )
+    
+    (ok true)
+  )
+)
