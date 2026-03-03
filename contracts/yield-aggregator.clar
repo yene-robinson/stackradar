@@ -240,3 +240,92 @@
     (ok true)
   )
 )
+
+;; Deactivate a yield source
+(define-public (deactivate-source (source-id uint))
+  (let
+    (
+      (source (unwrap! (map-get? yield-sources source-id) ERR-SOURCE-NOT-FOUND))
+    )
+    (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+    
+    (map-set yield-sources source-id
+      (merge source { is-active: false })
+    )
+    (ok true)
+  )
+)
+
+;; ============================================
+;; PUBLIC FUNCTIONS - User Yield Tracking
+;; ============================================
+
+;; Start tracking yield for a user on a specific source
+(define-public (start-tracking
+    (source-id uint)
+    (principal-amount uint)
+  )
+  (let
+    (
+      (source (unwrap! (map-get? yield-sources source-id) ERR-SOURCE-NOT-FOUND))
+      (existing-tracking (map-get? user-yield-tracking { user: tx-sender, source-id: source-id }))
+      (user-totals (default-to 
+        { total-earned: u0, total-claimed: u0, sources-count: u0, last-updated: u0 }
+        (map-get? user-total-yield tx-sender)))
+    )
+    (asserts! (get is-active source) ERR-SOURCE-INACTIVE)
+    (asserts! (>= principal-amount (get min-deposit source)) ERR-INVALID-RATE)
+    (asserts! (is-none existing-tracking) ERR-ALREADY-EXISTS)
+    
+    ;; Create tracking entry
+    (map-set user-yield-tracking
+      { user: tx-sender, source-id: source-id }
+      {
+        principal-amount: principal-amount,
+        accumulated-yield: u0,
+        last-claim-block: stacks-block-height,
+        entry-block: stacks-block-height,
+        entry-apy: (get current-apy source)
+      }
+    )
+    
+    ;; Update user totals
+    (map-set user-total-yield tx-sender
+      (merge user-totals {
+        sources-count: (+ (get sources-count user-totals) u1),
+        last-updated: stacks-block-height
+      })
+    )
+    
+    (ok true)
+  )
+)
+
+;; Update principal amount being tracked
+(define-public (update-tracking-amount
+    (source-id uint)
+    (new-amount uint)
+  )
+  (let
+    (
+      (source (unwrap! (map-get? yield-sources source-id) ERR-SOURCE-NOT-FOUND))
+      (tracking (unwrap! (map-get? user-yield-tracking { user: tx-sender, source-id: source-id }) ERR-USER-NOT-FOUND))
+      (accumulated (calculate-accumulated-yield 
+                     (get principal-amount tracking)
+                     (get entry-apy tracking)
+                     (get last-claim-block tracking)))
+    )
+    ;; Update tracking with new amount and accumulate earned yield
+    (map-set user-yield-tracking
+      { user: tx-sender, source-id: source-id }
+      (merge tracking {
+        principal-amount: new-amount,
+        accumulated-yield: (+ (get accumulated-yield tracking) accumulated),
+        last-claim-block: stacks-block-height,
+        entry-apy: (get current-apy source)
+      })
+    )
+    
+    (ok true)
+  )
+)
