@@ -316,3 +316,51 @@
     (ok stacks-block-height)
   )
 )
+
+;; ============================================
+;; PUBLIC FUNCTIONS - Protocol Management (Admin)
+;; ============================================
+
+;; Register a new DeFi protocol
+(define-public (register-protocol 
+    (name (string-ascii 64))
+    (contract-address principal)
+  )
+  (let
+    (
+      (new-id (+ (var-get protocol-counter) u1))
+      (existing (map-get? protocol-name-to-id name))
+    )
+    (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+    (asserts! (is-none existing) ERR-ALREADY-REGISTERED)
+    
+    (map-set protocols new-id
+      {
+        name: name,
+        contract-address: contract-address,
+        is-active: true,
+        total-tracked: u0,
+        registered-at: stacks-block-height
+      }
+    )
+    (map-set protocol-name-to-id name new-id)
+    (var-set protocol-counter new-id)
+    
+    (ok new-id)
+  )
+)
+
+;; Deactivate a protocol
+(define-public (deactivate-protocol (protocol-id uint))
+  (let
+    (
+      (protocol (unwrap! (map-get? protocols protocol-id) ERR-PROTOCOL-NOT-REGISTERED))
+    )
+    (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+    
+    (map-set protocols protocol-id
+      (merge protocol { is-active: false })
+    )
+    (ok true)
+  )
+)
