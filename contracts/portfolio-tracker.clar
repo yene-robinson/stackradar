@@ -256,3 +256,63 @@
     (ok true)
   )
 )
+
+;; Close/remove a position
+(define-public (close-position (position-id uint))
+  (let
+    (
+      (position (unwrap! (map-get? positions { user: tx-sender, position-id: position-id }) ERR-POSITION-NOT-FOUND))
+      (user-data (unwrap! (map-get? users tx-sender) ERR-NOT-AUTHORIZED))
+      (protocol (unwrap! (map-get? protocols (get protocol-id position)) ERR-PROTOCOL-NOT-REGISTERED))
+      (position-value (get entry-value position))
+    )
+    (asserts! (get is-active position) ERR-POSITION-NOT-FOUND)
+    
+    ;; Mark position as inactive
+    (map-set positions
+      { user: tx-sender, position-id: position-id }
+      (merge position {
+        is-active: false,
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update user data
+    (map-set users tx-sender
+      (merge user-data {
+        total-value: (- (get total-value user-data) position-value),
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update global tracked value
+    (var-set total-tracked-value (- (var-get total-tracked-value) position-value))
+    
+    ;; Update protocol total
+    (map-set protocols (get protocol-id position)
+      (merge protocol {
+        total-tracked: (- (get total-tracked protocol) position-value)
+      })
+    )
+    
+    (ok true)
+  )
+)
+
+;; Take a portfolio snapshot (for historical tracking)
+(define-public (take-snapshot)
+  (let
+    (
+      (user-data (unwrap! (map-get? users tx-sender) ERR-NOT-AUTHORIZED))
+    )
+    (map-set portfolio-snapshots
+      { user: tx-sender, stacks-block-height: stacks-block-height }
+      {
+        total-value: (get total-value user-data),
+        position-count: (get total-positions user-data),
+        timestamp: stacks-block-height
+      }
+    )
+    (ok stacks-block-height)
+  )
+)
