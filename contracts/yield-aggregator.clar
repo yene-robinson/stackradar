@@ -189,3 +189,54 @@
     (ok new-id)
   )
 )
+
+;; Update APY rate for a source (oracle function)
+(define-public (update-apy (source-id uint) (new-apy uint))
+  (let
+    (
+      (source (unwrap! (map-get? yield-sources source-id) ERR-SOURCE-NOT-FOUND))
+    )
+    (asserts! (is-authorized-updater) ERR-NOT-AUTHORIZED)
+    (asserts! (get is-active source) ERR-SOURCE-INACTIVE)
+    (asserts! (<= new-apy u10000000) ERR-INVALID-RATE)
+    
+    ;; Update source
+    (map-set yield-sources source-id
+      (merge source {
+        current-apy: new-apy,
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Record in history
+    (map-set apy-history
+      { source-id: source-id, snapshot-block: stacks-block-height }
+      {
+        apy: new-apy,
+        tvl: (get tvl source),
+        timestamp: stacks-block-height
+      }
+    )
+    
+    (ok true)
+  )
+)
+
+;; Update TVL for a source
+(define-public (update-tvl (source-id uint) (new-tvl uint))
+  (let
+    (
+      (source (unwrap! (map-get? yield-sources source-id) ERR-SOURCE-NOT-FOUND))
+    )
+    (asserts! (is-authorized-updater) ERR-NOT-AUTHORIZED)
+    
+    (map-set yield-sources source-id
+      (merge source {
+        tvl: new-tvl,
+        last-updated: stacks-block-height
+      })
+    )
+    
+    (ok true)
+  )
+)
