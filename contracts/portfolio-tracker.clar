@@ -209,3 +209,50 @@
     (ok new-position-id)
   )
 )
+
+;; Update position value (for rebalancing/yield updates)
+(define-public (update-position-value
+    (position-id uint)
+    (new-amount uint)
+    (new-value uint)
+  )
+  (let
+    (
+      (position (unwrap! (map-get? positions { user: tx-sender, position-id: position-id }) ERR-POSITION-NOT-FOUND))
+      (user-data (unwrap! (map-get? users tx-sender) ERR-NOT-AUTHORIZED))
+      (old-value (get entry-value position))
+      (value-diff (if (> new-value old-value) 
+                      (- new-value old-value) 
+                      u0))
+      (value-decrease (if (< new-value old-value)
+                          (- old-value new-value)
+                          u0))
+    )
+    (asserts! (get is-active position) ERR-POSITION-NOT-FOUND)
+    (asserts! (> new-amount u0) ERR-INVALID-AMOUNT)
+    
+    ;; Update position
+    (map-set positions
+      { user: tx-sender, position-id: position-id }
+      (merge position {
+        amount: new-amount,
+        entry-value: new-value,
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update user total value
+    (map-set users tx-sender
+      (merge user-data {
+        total-value: (+ (- (get total-value user-data) old-value) new-value),
+        last-updated: stacks-block-height
+      })
+    )
+    
+    ;; Update global tracked value
+    (var-set total-tracked-value 
+      (+ (- (var-get total-tracked-value) old-value) new-value))
+    
+    (ok true)
+  )
+)
