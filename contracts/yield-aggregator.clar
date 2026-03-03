@@ -397,3 +397,60 @@
     (ok true)
   )
 )
+
+;; ============================================
+;; PUBLIC FUNCTIONS - Admin
+;; ============================================
+
+;; Set new oracle address
+(define-public (set-oracle (new-oracle principal))
+  (begin
+    (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+    (var-set rate-oracle new-oracle)
+    (ok true)
+  )
+)
+
+;; ============================================
+;; READ-ONLY FUNCTIONS
+;; ============================================
+
+;; Get yield source info
+(define-read-only (get-yield-source (source-id uint))
+  (map-get? yield-sources source-id)
+)
+
+;; Get source ID by name
+(define-read-only (get-source-id-by-name (name (string-ascii 64)))
+  (map-get? source-name-to-id name)
+)
+
+;; Get APY history for a source at a specific block
+(define-read-only (get-apy-at-block (source-id uint) (target-block uint))
+  (map-get? apy-history { source-id: source-id, snapshot-block: target-block })
+)
+
+;; Get user tracking info for a source
+(define-read-only (get-user-tracking (user principal) (source-id uint))
+  (map-get? user-yield-tracking { user: user, source-id: source-id })
+)
+
+;; Get user total yield info
+(define-read-only (get-user-yield-totals (user principal))
+  (map-get? user-total-yield user)
+)
+
+;; Get total sources
+(define-read-only (get-total-sources)
+  (var-get total-sources)
+)
+
+;; Get total yield distributed
+(define-read-only (get-total-yield-distributed)
+  (var-get total-yield-distributed)
+)
+
+;; Get current oracle
+(define-read-only (get-oracle)
+  (var-get rate-oracle)
+)
