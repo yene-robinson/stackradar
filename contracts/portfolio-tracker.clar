@@ -364,3 +364,81 @@
     (ok true)
   )
 )
+
+;; ============================================
+;; READ-ONLY FUNCTIONS
+;; ============================================
+
+;; Get user profile
+(define-read-only (get-user-profile (user principal))
+  (map-get? users user)
+)
+
+;; Get specific position
+(define-read-only (get-position (user principal) (position-id uint))
+  (map-get? positions { user: user, position-id: position-id })
+)
+
+;; Get user's position count
+(define-read-only (get-user-position-count (user principal))
+  (default-to u0 (map-get? user-position-counter user))
+)
+
+;; Get protocol info
+(define-read-only (get-protocol (protocol-id uint))
+  (map-get? protocols protocol-id)
+)
+
+;; Get protocol ID by name
+(define-read-only (get-protocol-id-by-name (name (string-ascii 64)))
+  (map-get? protocol-name-to-id name)
+)
+
+;; Get portfolio snapshot
+(define-read-only (get-snapshot (user principal) (snapshot-block uint))
+  (map-get? portfolio-snapshots { user: user, stacks-block-height: snapshot-block })
+)
+
+;; Get total users
+(define-read-only (get-total-users)
+  (var-get total-users)
+)
+
+;; Get total tracked value
+(define-read-only (get-total-tracked-value)
+  (var-get total-tracked-value)
+)
+
+;; Get total protocols
+(define-read-only (get-protocol-count)
+  (var-get protocol-counter)
+)
+
+;; Check if user is registered
+(define-read-only (is-user-registered (user principal))
+  (is-some (map-get? users user))
+)
+
+;; Calculate position gain/loss (simple)
+(define-read-only (get-position-pnl (user principal) (position-id uint) (current-value uint))
+  (match (map-get? positions { user: user, position-id: position-id })
+    position
+      (let
+        (
+          (entry-value (get entry-value position))
+        )
+        (ok {
+          entry-value: entry-value,
+          current-value: current-value,
+          pnl: (if (>= current-value entry-value)
+                   (- current-value entry-value)
+                   u0),
+          is-profit: (>= current-value entry-value),
+          loss: (if (< current-value entry-value)
+                    (- entry-value current-value)
+                    u0)
+        })
+      )
+    ERR-POSITION-NOT-FOUND
+  )
+)
