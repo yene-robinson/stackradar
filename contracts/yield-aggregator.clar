@@ -454,3 +454,74 @@
 (define-read-only (get-oracle)
   (var-get rate-oracle)
 )
+
+;; Calculate estimated yield for a user on a source
+(define-read-only (estimate-pending-yield (user principal) (source-id uint))
+  (match (map-get? user-yield-tracking { user: user, source-id: source-id })
+    tracking
+      (let
+        (
+          (blocks-elapsed (- stacks-block-height (get last-claim-block tracking)))
+          (principal (get principal-amount tracking))
+          (apy (get entry-apy tracking))
+          (calculated (calculate-accumulated-yield principal apy (get last-claim-block tracking)))
+        )
+        (ok {
+          pending: (+ (get accumulated-yield tracking) calculated),
+          principal: principal,
+          blocks-elapsed: blocks-elapsed,
+          current-apy: apy
+        })
+      )
+    ERR-USER-NOT-FOUND
+  )
+)
+
+;; Calculate APY to APR (simple conversion)
+(define-read-only (apy-to-daily-rate (apy uint))
+  ;; APY / 365 for daily rate approximation
+  (/ apy u365)
+)
+
+;; Get all active sources count
+(define-read-only (get-active-sources-count)
+  (var-get total-sources)  ;; Simplified - in production would iterate
+)
+
+;; ============================================
+;; PRIVATE FUNCTIONS
+;; ============================================
+
+;; Calculate accumulated yield based on principal, APY, and time
+(define-private (calculate-accumulated-yield 
+    (principal uint)
+    (apy uint)
+    (start-block uint)
+  )
+  (let
+    (
+      (blocks-elapsed (- stacks-block-height start-block))
+      ;; Yield = principal * (apy / 10000) * (blocks / blocks-per-year)
+      ;; Simplified: principal * apy * blocks / (10000 * 52560)
+      (yield-numerator (* (* principal apy) blocks-elapsed))
+      (yield-denominator (* u10000 BLOCKS-PER-YEAR))
+    )
+    (if (> yield-denominator u0)
+        (/ yield-numerator yield-denominator)
+        u0)
+  )
+)
+
+;; ============================================
+;; INITIALIZATION - Register Common sBTC Yield Sources
+;; ============================================
+
+;; Note: In production, these would be registered via governance
+;; or admin calls after deployment. Listed here for reference.
+;;
+;; Common sBTC yield sources on Stacks:
+;; 1. Zest Protocol (Lending)
+;; 2. StackingDAO (Liquid Staking)
+;; 3. ALEX (DEX LP)
+;; 4. BitFlow (DEX LP)
+;; 5. Velar (DeFi)
