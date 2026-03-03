@@ -47,3 +47,72 @@
 
 ;; Oracle/updater address (can be changed by owner)
 (define-data-var rate-oracle principal CONTRACT-OWNER)
+
+;; ============================================
+;; DATA MAPS
+;; ============================================
+
+;; Yield sources (protocols that generate yield)
+(define-map yield-sources
+  uint  ;; source-id
+  {
+    name: (string-ascii 64),
+    source-type: uint,
+    contract-address: principal,
+    current-apy: uint,              ;; APY in basis points (10000 = 100%)
+    min-deposit: uint,
+    tvl: uint,                      ;; Total value locked
+    is-active: bool,
+    last-updated: uint,
+    created-at: uint
+  }
+)
+
+;; Source name to ID mapping
+(define-map source-name-to-id
+  (string-ascii 64)
+  uint
+)
+
+;; Historical APY rates for each source
+(define-map apy-history
+  { source-id: uint, snapshot-block: uint }
+  {
+    apy: uint,
+    tvl: uint,
+    timestamp: uint
+  }
+)
+
+;; User yield tracking
+(define-map user-yield-tracking
+  { user: principal, source-id: uint }
+  {
+    principal-amount: uint,
+    accumulated-yield: uint,
+    last-claim-block: uint,
+    entry-block: uint,
+    entry-apy: uint
+  }
+)
+
+;; User total yield earned (aggregate)
+(define-map user-total-yield
+  principal
+  {
+    total-earned: uint,
+    total-claimed: uint,
+    sources-count: uint,
+    last-updated: uint
+  }
+)
+
+;; Daily/periodic yield snapshots for analytics
+(define-map yield-snapshots
+  { source-id: uint, period: uint }  ;; period = stacks-block-height / BLOCKS-PER-DAY
+  {
+    avg-apy: uint,
+    total-yield: uint,
+    unique-users: uint
+  }
+)
