@@ -183,7 +183,8 @@ function blockToDate(blockHeight: number): string {
 /**
  * Convert micro-sBTC to sBTC (8 decimals)
  */
-function microToSbtc(micro: number): number {
+function microToSbtc(micro: number | undefined | null): number {
+  if (micro === undefined || micro === null || isNaN(micro)) return 0;
   return micro / 100000000;
 }
 
@@ -191,6 +192,7 @@ function microToSbtc(micro: number): number {
  * Get approximate USD value (placeholder - would use oracle in production)
  */
 function sbtcToUsd(sbtc: number): number {
+  if (isNaN(sbtc)) return 0;
   const BTC_PRICE = 63800; // Approximate BTC price
   return sbtc * BTC_PRICE;
 }
@@ -296,13 +298,18 @@ export async function getPortfolioStats(userAddress: string): Promise<PortfolioS
     const totalValueUsd = sbtcToUsd(microToSbtc(profile.totalValue));
     const totalYieldUsd = yieldTotals ? sbtcToUsd(microToSbtc(yieldTotals.totalEarned)) : 0;
     
+    // Guard against NaN values
+    const safeValue = isNaN(totalValueUsd) ? 0 : totalValueUsd;
+    const safeYield = isNaN(totalYieldUsd) ? 0 : totalYieldUsd;
+    const safePositions = profile.totalPositions ?? 0;
+    
     return {
-      totalValue: totalValueUsd,
+      totalValue: safeValue,
       change24h: 2.4, // Would need historical data
-      changeValue24h: totalValueUsd * 0.024, // Estimate
-      totalYield: totalYieldUsd,
+      changeValue24h: safeValue * 0.024, // Estimate
+      totalYield: safeYield,
       yieldChange: 12.8, // Would need historical data
-      activePositions: profile.totalPositions,
+      activePositions: safePositions,
     };
   } catch (error) {
     console.error('Error fetching portfolio stats:', error);
