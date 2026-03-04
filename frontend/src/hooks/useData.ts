@@ -5,8 +5,9 @@
  * Uses the data service to transform contract data for UI
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWallet } from '@/hooks/useStacksWallet';
+import { usePrices } from '@/hooks/usePrices';
 import {
   fetchPositions,
   fetchYieldOpportunities,
@@ -245,63 +246,72 @@ export function useProtocols(): RefreshableDataState<Protocol[]> {
 // HOOK: usePortfolioStats
 // ============================================
 
+/**
+ * Calculate portfolio stats from REAL wallet balances and prices
+ * No more mock data - uses actual blockchain data
+ */
 export function usePortfolioStats(): RefreshableDataState<PortfolioStats> {
-  const { address, connected } = useWallet();
-  const [state, setState] = useState<DataState<PortfolioStats>>({
-    data: mockPortfolioStats,
-    isLoading: true,
-    error: null,
-    isFromContract: false,
-  });
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadData() {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-      const cacheKey = `portfolio-stats-${address}`;
-      const cached = getCached<PortfolioStats>(cacheKey);
-      if (cached) {
-        setState({ data: cached, isLoading: false, error: null, isFromContract: true });
-        return;
-      }
-
-      if (!USE_BLOCKCHAIN_DATA || !connected || !address) {
-        setState({ data: mockPortfolioStats, isLoading: false, error: null, isFromContract: false });
-        return;
-      }
-
-      try {
-        const stats = await getPortfolioStats(address);
-        if (!cancelled) {
-          // If no real data, use mock
-          if (stats.totalValue === 0) {
-            setState({ data: mockPortfolioStats, isLoading: false, error: null, isFromContract: false });
-          } else {
-            setCache(cacheKey, stats);
-            setState({ data: stats, isLoading: false, error: null, isFromContract: true });
-          }
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Error loading portfolio stats:', error);
-          setState({ data: mockPortfolioStats, isLoading: false, error: error as Error, isFromContract: false });
-        }
-      }
+  const { address, connected, stxBalance, sbtcBalance, balancesLoading, refreshBalances } = useWallet();
+  const { prices, loading: pricesLoading, calculateUSDValue, refresh: refreshPrices } = usePrices();
+  
+  const isLoading = balancesLoading || pricesLoading;
+  
+  // Calculate real portfolio stats from actual balances
+  const stats = useMemo((): PortfolioStats => {
+    if (!connected || !address) {
+      return {
+        totalValue: 0,
+        change24h: 0,
+        changeValue24h: 0,
+        totalYield: 0,
+        yieldChange: 0,
+        activePositions: 0,
+      };
     }
+    
+    // Convert balances to numbers
+    const stxAmount = Number(stxBalance) / 1_000_000; // 6 decimals
+    const sbtcAmount = Number(sbtcBalance) / 100_000_000; // 8 decimals
+    
+    // Calculate USD values using real prices
+    const stxUsdValue = calculateUSDValue(stxAmount, 'stx');
+    const sbtcUsdValue = calculateUSDValue(sbtcAmount, 'sbtc');
+    const totalValue = stxUsdValue + sbtcUsdValue;
+    
+    // Get 24h price changes from real data
+    const stx24hChange = prices.stx?.usd_24h_change ?? 0;
+    const sbtc24hChange = prices.sbtc?.usd_24h_change ?? 0;
+    
+    // Calculate weighted 24h change based on holdings
+    let weightedChange24h = 0;
+    if (totalValue > 0) {
+      weightedChange24h = (stxUsdValue * stx24hChange + sbtcUsdValue * sbtc24hChange) / totalValue;
+    }
+    
+    // Calculate 24h value change
+    const changeValue24h = totalValue * (weightedChange24h / 100);
+    
+    return {
+      totalValue,
+      change24h: weightedChange24h,
+      changeValue24h,
+      totalYield: 0, // Real yield tracking would come from DeFi positions
+      yieldChange: 0,
+      activePositions: 0, // Would count real positions
+    };
+  }, [connected, address, stxBalance, sbtcBalance, prices, calculateUSDValue]);
 
-    loadData();
-    return () => { cancelled = true; };
-  }, [address, connected, refreshCount]);
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshBalances(), refreshPrices()]);
+  }, [refreshBalances, refreshPrices]);
 
-  const refresh = useCallback(() => {
-    cache.delete(`portfolio-stats-${address}`);
-    setRefreshCount(c => c + 1);
-  }, [address]);
-
-  return { ...state, refresh };
+  return { 
+    data: stats, 
+    isLoading, 
+    error: null, 
+    isFromContract: true, // This is real data now!
+    refresh,
+  };
 }
 
 // ============================================
