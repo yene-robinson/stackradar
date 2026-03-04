@@ -25,7 +25,7 @@ const sortOptions = [
   { label: 'Earned', key: 'earned' },
 ] as const;
 
-export default function Positions({ onOpenWallet }: { onOpenWallet?: () => void }) {
+export default function Positions({ onConnectWallet }: { onConnectWallet?: () => void }) {
   const navigate = useNavigate();
   const { connected } = useWallet();
   const [view, setView] = useState<'grid' | 'list'>('grid');
@@ -59,7 +59,7 @@ export default function Positions({ onOpenWallet }: { onOpenWallet?: () => void 
   return (
     <div ref={containerRef} className="min-h-screen bg-background">
       <SEOHead title="Positions" description="Manage all your sBTC positions across protocols." />
-      <DashboardHeader onConnectWallet={onOpenWallet} />
+      <DashboardHeader onConnectWallet={onConnectWallet} />
 
       {(pullDistance > 0 || refreshing) && (
         <div className="pull-indicator pt-20" style={{ opacity: Math.min(pullDistance / 60, 1) }}>
@@ -70,7 +70,7 @@ export default function Positions({ onOpenWallet }: { onOpenWallet?: () => void 
       <main id="main-content" className="container mx-auto px-4 sm:px-6 pt-20 pb-8 space-y-5">
         {!connected ? (
           <div className="pt-12">
-            <ErrorState variant="wallet" actionLabel="Connect Wallet" onAction={onOpenWallet} />
+            <ErrorState variant="wallet" actionLabel="Connect Wallet" onAction={onConnectWallet} />
           </div>
         ) : (
         <>

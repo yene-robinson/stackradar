@@ -17,7 +17,7 @@ import { useWallet } from '@/hooks/useStacksWallet';
 const ranges = ['1M', '3M', '1Y', 'ALL'] as const;
 const rangeSlice: Record<string, number> = { '1M': 30, '3M': 90, '1Y': 90, ALL: 90 };
 
-export default function Analytics({ onOpenWallet }: { onOpenWallet?: () => void }) {
+export default function Analytics({ onConnectWallet }: { onConnectWallet?: () => void }) {
   const { connected } = useWallet();
   const [range, setRange] = useState<string>('3M');
   const { data: portfolioStats, isLoading } = usePortfolioStats();
@@ -33,11 +33,11 @@ export default function Analytics({ onOpenWallet }: { onOpenWallet?: () => void 
   return (
     <div className="min-h-screen bg-background">
       <SEOHead title="Analytics" description="Deep insights into your sBTC portfolio performance." />
-      <DashboardHeader onConnectWallet={onOpenWallet} />
+      <DashboardHeader onConnectWallet={onConnectWallet} />
       <main id="main-content" className="container mx-auto px-4 sm:px-6 pt-20 pb-8 space-y-5">
         {!connected ? (
           <div className="pt-12">
-            <ErrorState variant="wallet" actionLabel="Connect Wallet" onAction={onOpenWallet} />
+            <ErrorState variant="wallet" actionLabel="Connect Wallet" onAction={onConnectWallet} />
           </div>
         ) : (
         <>

@@ -5,6 +5,7 @@ import { PortfolioChart } from '@/components/dashboard/PortfolioChart';
 import { PositionCard } from '@/components/dashboard/PositionCard';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { YieldSidebar } from '@/components/dashboard/YieldSidebar';
+import { PriceDisplay } from '@/components/PriceDisplay';
 import { SkeletonCard } from '@/components/skeletons/SkeletonCard';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
@@ -17,10 +18,10 @@ import { useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   onOpenAddPosition?: () => void;
-  onOpenWallet?: () => void;
+  onConnectWallet?: () => void;
 }
 
-export default function Dashboard({ onOpenAddPosition, onOpenWallet }: DashboardProps) {
+export default function Dashboard({ onOpenAddPosition, onConnectWallet }: DashboardProps) {
   const navigate = useNavigate();
   const { connected, address } = useWallet();
   const { data, isLoading, refresh } = useDashboardData();
@@ -39,7 +40,7 @@ export default function Dashboard({ onOpenAddPosition, onOpenWallet }: Dashboard
   return (
     <div ref={containerRef} className="min-h-screen bg-background pb-20 md:pb-0">
       <SEOHead title="Dashboard" description="Your sBTC portfolio overview and performance metrics." />
-      <DashboardHeader onConnectWallet={onOpenWallet} />
+      <DashboardHeader onConnectWallet={onConnectWallet} />
 
       {/* Pull to refresh indicator */}
       {(pullDistance > 0 || refreshing) && (
@@ -54,7 +55,7 @@ export default function Dashboard({ onOpenAddPosition, onOpenWallet }: Dashboard
             <ErrorState
               variant="wallet"
               actionLabel="Connect Wallet"
-              onAction={onOpenWallet}
+              onAction={onConnectWallet}
             />
           </div>
         ) : (
@@ -143,6 +144,7 @@ export default function Dashboard({ onOpenAddPosition, onOpenWallet }: Dashboard
                     </div>
 
                     <div className="space-y-6">
+                      <PriceDisplay variant="full" />
                       <YieldSidebar />
                       <ActivityFeed />
                     </div>
