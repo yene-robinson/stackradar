@@ -8,7 +8,6 @@ import { useWallet } from '@/hooks/useStacksWallet';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 const ctaContainerVariants = {
   hidden: {},
@@ -33,11 +32,12 @@ const Index = () => {
 
     try {
       await connect();
-      toast.success('Wallet connected!');
+      // Toast is handled by useStacksWallet hook
+      // Only navigate if connection was successful (no error thrown)
       navigate('/dashboard');
     } catch (error) {
+      // Error toast is handled by useStacksWallet hook
       console.error('Connection error:', error);
-      toast.error('Failed to connect wallet');
     }
   };
 
