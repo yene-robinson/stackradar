@@ -88,7 +88,8 @@ export function Hero({ onLaunchApp, isConnecting }: HeroProps) {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/5 blur-[120px] pointer-events-none animate-[orb-pulse_8s_ease-in-out_infinite]" />
       <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-secondary/5 blur-[100px] pointer-events-none animate-[orb-pulse_10s_ease-in-out_infinite_2s]" />
 
-      <div className="container mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pb-20">
+      {/* pt-28 accounts for: testnet banner (34px) + header (56px) */}
+      <div className="container mx-auto px-4 sm:px-6 pt-28 pb-12 sm:pb-20">
         <div className="max-w-4xl mx-auto text-center space-y-5 sm:space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

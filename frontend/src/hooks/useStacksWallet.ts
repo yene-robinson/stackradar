@@ -2,12 +2,14 @@
  * StackRadar Wallet Hook
  * 
  * Real Stacks wallet connection using @stacks/connect
+ * ⚠️ TESTNET ONLY - Mainnet wallets will be rejected
  * @see https://docs.stacks.co/stacks.js/connect-web-app
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import React from 'react';
 import { connect, disconnect as disconnectWallet, isConnected, getLocalStorage } from '@stacks/connect';
+import { toast } from 'sonner';
 import { NETWORK, API_BASE_URL } from '@/lib/stacks/contracts';
 
 // ============================================
@@ -179,7 +181,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             // [0]=mainnetSTX, [1]=mainnetBTC, [2]=testnetSTX, [3]=testnetBTC
             const testnetAddress = stored.addresses[2]?.address;
             
-            if (testnetAddress) {
+            // STRICT TESTNET: Only accept ST... addresses
+            if (testnetAddress && testnetAddress.startsWith('ST')) {
               setState(prev => ({
                 ...prev,
                 connected: true,
@@ -188,6 +191,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                 error: null,
               }));
               return;
+            } else if (testnetAddress) {
+              // Address exists but not testnet - disconnect
+              console.warn('Stored address is not testnet, clearing connection');
+              disconnectWallet();
             }
           }
         }
@@ -211,10 +218,48 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       // Per Stacks convention: addresses[2] is the testnet STX address
       const testnetAddress = response.addresses[2]?.address;
+      const mainnetAddress = response.addresses[0]?.address;
+      
+      // Check if user is trying to connect with mainnet wallet
+      if (!testnetAddress && mainnetAddress) {
+        toast.error('Mainnet Wallet Detected', {
+          description: 'StackRadar only supports testnet. Please switch to a testnet wallet or enable testnet in your wallet settings.',
+          duration: 6000,
+          style: {
+            background: 'hsl(var(--destructive))',
+            color: 'white',
+            border: '1px solid hsl(var(--destructive))',
+          },
+        });
+        throw new Error('Mainnet wallet not supported');
+      }
       
       if (!testnetAddress) {
-        throw new Error('No testnet address found. Please use a wallet that supports Stacks testnet.');
+        toast.error('No Testnet Address Found', {
+          description: 'Please ensure your wallet has testnet enabled. Go to wallet settings to enable testnet mode.',
+          duration: 5000,
+        });
+        throw new Error('No testnet address found');
       }
+
+      // STRICT TESTNET VALIDATION: Only allow ST... addresses
+      if (!testnetAddress.startsWith('ST')) {
+        toast.error('Invalid Network', {
+          description: 'This address is not a valid Stacks testnet address. Testnet addresses start with "ST".',
+          duration: 5000,
+          style: {
+            background: 'hsl(var(--destructive))',
+            color: 'white',
+          },
+        });
+        throw new Error('Not a testnet address');
+      }
+
+      // Success!
+      toast.success('Wallet Connected!', {
+        description: `Connected to ${testnetAddress.slice(0, 8)}...${testnetAddress.slice(-4)}`,
+        duration: 3000,
+      });
 
       setState(prev => ({
         ...prev,
@@ -225,11 +270,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }));
     } catch (error) {
       console.error('Wallet connection error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
+      
+      // Only show generic error toast if we haven't already shown a specific one
+      if (!errorMessage.includes('Mainnet') && !errorMessage.includes('testnet') && !errorMessage.includes('address')) {
+        toast.error('Connection Failed', {
+          description: errorMessage,
+        });
+      }
+      
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to connect wallet',
+        error: errorMessage,
       }));
+      
+      // Re-throw so caller knows connection failed
+      throw error;
     }
   }, []);
 

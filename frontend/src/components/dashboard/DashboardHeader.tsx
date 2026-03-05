@@ -105,6 +105,12 @@ export function DashboardHeader({ onConnectWallet }: DashboardHeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Testnet Badge */}
+          <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+            <span className="text-[10px] font-semibold text-yellow-500">TESTNET</span>
+          </div>
+
           {/* Notification Center */}
           <NotificationCenter />
 

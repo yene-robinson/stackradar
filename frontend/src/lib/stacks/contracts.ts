@@ -1,9 +1,17 @@
 /**
  * StackRadar Contract Configuration
  * 
+ * ⚠️ TESTNET ONLY - This app only supports Stacks testnet
  * Deployed contract addresses and configuration for testnet
  * @see https://docs.stacks.co/stacks.js/network-configuration
  */
+
+// ============================================
+// NETWORK CONFIGURATION - TESTNET ONLY
+// ============================================
+export const NETWORK = 'testnet' as const;
+export const IS_TESTNET = true;
+export const API_BASE_URL = 'https://api.testnet.hiro.so';
 
 // Contract deployer address on testnet
 export const DEPLOYER_ADDRESS = 'ST1BQ60GADTBRMPX2M7GE88QJ4Z0G22Y14H6GE66X';
@@ -82,7 +90,3 @@ export const ERROR_MESSAGES: Record<number, string> = {
   2006: 'Already tracking this source',
   2007: 'Amount below minimum deposit',
 };
-
-// Network configuration
-export const NETWORK = 'testnet' as const;
-export const API_BASE_URL = 'https://api.testnet.hiro.so';
